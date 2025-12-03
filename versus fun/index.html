@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Versus Arena - 5 Mini Games</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary: #00f2ea;
+            --secondary: #ff0050;
+            --bg: #0f0e17;
+            --card: #232136;
+            --text: #fffffe;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            text-align: center;
+            overflow-x: hidden;
+        }
+
+        .screen { display: none; width: 100%; max-width: 500px; padding: 20px; box-sizing: border-box; }
+        .active { display: block; animation: fadeIn 0.5s; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        h1 { font-size: 2.5rem; text-transform: uppercase; letter-spacing: 2px; text-shadow: 2px 2px var(--secondary); margin-bottom: 10px; }
+        h2 { color: var(--primary); }
+
+        button {
+            background: var(--secondary);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            border-radius: 50px;
+            margin: 10px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 80%;
+            font-weight: bold;
+        }
+        button:hover { transform: scale(1.05); box-shadow: 0 0 15px var(--secondary); }
+        button.secondary { background: transparent; border: 2px solid var(--primary); color: var(--primary); }
+        
+        input {
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid var(--card);
+            background: var(--card);
+            color: white;
+            font-size: 1.2rem;
+            width: 70%;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        /* Grid untuk Menu Game */
+        .game-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+        .game-card {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 15px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: 0.3s;
+        }
+        .game-card:hover { border-color: var(--primary); transform: translateY(-5px); }
+        .game-icon { font-size: 2rem; display: block; margin-bottom: 10px; }
+
+        /* Game Specific Styles */
+        .game-area { background: var(--card); padding: 20px; border-radius: 15px; margin-top: 20px; min-height: 300px; display: flex; flex-direction: column; justify-content: center; align-items: center;}
+        
+        /* Tic Tac Toe */
+        .ttt-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; width: 200px; margin: 0 auto; }
+        .ttt-cell { height: 60px; background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 2rem; cursor: pointer; }
+        
+        /* RPS */
+        .rps-choices { display: flex; gap: 10px; justify-content: center; }
+        .rps-btn { font-size: 2rem; width: auto; padding: 10px; background: var(--card); border: 2px solid var(--primary); }
+        
+        /* Math & Word */
+        .big-text { font-size: 3rem; margin: 20px 0; font-weight: bold; }
+        
+        /* Status Bar */
+        #status-bar { margin-bottom: 15px; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px; font-size: 0.9rem;}
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="screen-landing" class="screen active">
+        <h1>Versus<br><span style="color:var(--primary)">Arena</span></h1>
+        <p>Platform 1v1 Multiplayer Realtime</p>
+        <br>
+        <button onclick="goToLobby()">PLAY NOW</button>
+    </div>
+
+    <div id="screen-lobby" class="screen">
+        <h2>Lobby</h2>
+        <p>Masukkan kode ruangan yang sama untuk bermain berdua.</p>
+        <input type="text" id="room-code" placeholder="Contoh: 1234" maxlength="6">
+        <br>
+        <button onclick="joinRoom()">GABUNG ROOM</button>
+        <button class="secondary" onclick="backTo('landing')">KEMBALI</button>
+    </div>
+
+    <div id="screen-menu" class="screen">
+        <div id="status-bar">Menunggu lawan...</div>
+        <h2>Pilih Game</h2>
+        <div class="game-grid">
+            <div class="game-card" onclick="selectGame('tictactoe')">
+                <span class="game-icon">❌⭕</span> Tic Tac Toe
+            </div>
+            <div class="game-card" onclick="selectGame('rps')">
+                <span class="game-icon">✂️🪨📄</span> Rock Paper Scissor
+            </div>
+            <div class="game-card" onclick="selectGame('math')">
+                <span class="game-icon">➕➖</span> Quick Math
+            </div>
+            <div class="game-card" onclick="selectGame('dice')">
+                <span class="game-icon">🎲</span> Dice Battle
+            </div>
+            <div class="game-card" onclick="selectGame('word')">
+                <span class="game-icon">⌨️</span> Word Race
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-game" class="screen">
+        <button class="secondary" style="font-size: 0.8rem; padding: 5px 10px; width: auto;" onclick="backToMenu()">Keluar Game</button>
+        <h2 id="game-title">Game Title</h2>
+        <div id="game-container" class="game-area">
+            </div>
+        <p id="game-result"></p>
+    </div>
+
+    <script>
+        // --- KONFIGURASI SUPABASE ---
+        // GANTI DENGAN KREDENSIAL ANDA SENDIRI
+        const SUPABASE_URL = 'https://tbusnooxowzqozuvczbo.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRidXNub294b3d6cW96dXZjemJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ3MzA2NDQsImV4cCI6MjA4MDMwNjY0NH0.O_zyLs_gwD2EhdiqakEY8FVzcTcK22OI-a2UmEdE-NY';
+        
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // --- GLOBAL STATE ---
+        let myId = Math.random().toString(36).substr(2, 9); // ID Unik sementara
+        let channel;
+        let currentRoom = '';
+        let isHost = false; // Pemain pertama yang join dianggap host logika
+        
+        // --- NAVIGASI ---
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(`screen-${id}`).classList.add('active');
+        }
+        function backTo(screen) { showScreen(screen); }
+        function goToLobby() { showScreen('lobby'); }
+        function backToMenu() { 
+            channel.send({ type: 'broadcast', event: 'back_to_menu', payload: {} });
+            showScreen('menu'); 
+            document.getElementById('game-container').innerHTML = '';
+            document.getElementById('game-result').innerText = '';
+        }
+
+        // --- REALTIME CONNECTION ---
+        async function joinRoom() {
+            const code = document.getElementById('room-code').value;
+            if (!code) return alert("Masukkan kode ruangan!");
+            currentRoom = code;
+            
+            showScreen('menu');
+            document.getElementById('status-bar').innerText = `Room: ${code} | Menghubungkan...`;
+
+            // Setup Channel Supabase
+            channel = supabase.channel(`room_${code}`, {
+                config: { presence: { key: myId } }
+            });
+
+            channel
+            .on('presence', { event: 'sync' }, () => {
+                const state = channel.presenceState();
+                const users = Object.keys(state).length;
+                document.getElementById('status-bar').innerText = `Room: ${code} | Pemain: ${users}/2`;
+                if(users === 1) isHost = true; // Orang pertama jadi host
+            })
+            .on('broadcast', { event: 'select_game' }, ({ payload }) => {
+                loadGameUI(payload.game);
+            })
+            .on('broadcast', { event: 'game_data' }, ({ payload }) => {
+                handleGameData(payload);
+            })
+            .on('broadcast', { event: 'back_to_menu' }, () => {
+                showScreen('menu');
+            })
+            .subscribe(async (status) => {
+                if (status === 'SUBSCRIBED') {
+                    await channel.track({ online_at: new Date().toISOString() });
+                }
+            });
+        }
+
+        function selectGame(gameType) {
+            // Kirim sinyal ke lawan bahwa kita memilih game ini
+            channel.send({
+                type: 'broadcast',
+                event: 'select_game',
+                payload: { game: gameType }
+            });
+            loadGameUI(gameType);
+        }
+
+        // --- GAME LOGIC MANAGER ---
+        let currentGame = '';
+
+        function loadGameUI(gameType) {
+            currentGame = gameType;
+            showScreen('game');
+            const container = document.getElementById('game-container');
+            const title = document.getElementById('game-title');
+            document.getElementById('game-result').innerText = '';
+            
+            container.innerHTML = ''; // Reset
+
+            if (gameType === 'tictactoe') setupTicTacToe(container, title);
+            else if (gameType === 'rps') setupRPS(container, title);
+            else if (gameType === 'dice') setupDice(container, title);
+            else if (gameType === 'math') setupMath(container, title);
+            else if (gameType === 'word') setupWord(container, title);
+        }
+
+        function broadcastMove(data) {
+            channel.send({ type: 'broadcast', event: 'game_data', payload: data });
+        }
+
+        function handleGameData(data) {
+            if (currentGame === 'tictactoe') handleTicTacToe(data);
+            else if (currentGame === 'rps') handleRPS(data);
+            else if (currentGame === 'dice') handleDice(data);
+            else if (currentGame === 'math') handleMath(data);
+            else if (currentGame === 'word') handleWord(data);
+        }
+
+        // --- 1. TIC TAC TOE ---
+        let tttBoard = Array(9).fill(null);
+        let tttTurn = 'X'; // X jalan duluan
+        
+        function setupTicTacToe(container, title) {
+            title.innerText = "Tic Tac Toe";
+            tttBoard = Array(9).fill(null);
+            tttTurn = 'X';
+            let html = `<div class="ttt-grid">`;
+            for(let i=0; i<9; i++) {
+                html += `<div class="ttt-cell" id="cell-${i}" onclick="clickTTT(${i})"></div>`;
+            }
+            html += `</div><p id="ttt-status">Giliran: X</p>`;
+            container.innerHTML = html;
+        }
+
+        function clickTTT(index) {
+            // Logika sederhana: anggap Host selalu X, Joiner selalu O (untuk demo)
+            // Atau siapa cepat dia dapat. Untuk simpel:
+            if (tttBoard[index]) return;
+            
+            // Update lokal dulu (optimistic UI)
+            updateTTTUI(index, tttTurn);
+            
+            // Kirim ke lawan
+            broadcastMove({ index: index, player: tttTurn });
+        }
+
+        function handleTicTacToe(data) {
+            updateTTTUI(data.index, data.player);
+        }
+
+        function updateTTTUI(index, player) {
+            tttBoard[index] = player;
+            document.getElementById(`cell-${index}`).innerText = player;
+            checkTTTWin();
+            tttTurn = (player === 'X') ? 'O' : 'X';
+            document.getElementById('ttt-status').innerText = `Giliran: ${tttTurn}`;
+        }
+
+        function checkTTTWin() {
+            const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+            wins.forEach(combo => {
+                const [a,b,c] = combo;
+                if(tttBoard[a] && tttBoard[a] === tttBoard[b] && tttBoard[a] === tttBoard[c]) {
+                    document.getElementById('game-result').innerText = `${tttBoard[a]} MENANG!`;
+                }
+            });
+        }
+
+        // --- 2. ROCK PAPER SCISSOR ---
+        let rpsChoice = null;
+        
+        function setupRPS(container, title) {
+            title.innerText = "Batu Gunting Kertas";
+            container.innerHTML = `
+                <div class="rps-choices">
+                    <button class="rps-btn" onclick="playRPS('🪨')">🪨</button>
+                    <button class="rps-btn" onclick="playRPS('📄')">📄</button>
+                    <button class="rps-btn" onclick="playRPS('✂️')">✂️</button>
+                </div>
+                <p>Pilih senjatamu!</p>
+            `;
+            rpsChoice = null;
+        }
+
+        function playRPS(choice) {
+            rpsChoice = choice;
+            document.getElementById('game-result').innerText = `Kamu memilih ${choice}. Menunggu lawan...`;
+            broadcastMove({ action: 'picked', id: myId });
+        }
+
+        let opponentRPS = false;
+        function handleRPS(data) {
+            if (data.action === 'picked' && data.id !== myId) {
+                opponentRPS = true;
+                if(rpsChoice) revealRPS(data.choice); // Jika kita sudah pilih, kita minta reveal (Logic butuh 2 tahap aman, ini versi simple)
+                else document.getElementById('game-result').innerText = "Lawan sudah memilih!";
+                
+                // Note: Versi production harusnya kirim hash dulu baru reveal. 
+                // Di sini kita langsung kirim pilihan saat kedua player ready (Logic disederhanakan)
+                if(opponentRPS && rpsChoice) broadcastMove({ action: 'reveal', choice: rpsChoice, id: myId });
+            }
+            if (data.action === 'reveal' && data.id !== myId) {
+                determineRPS(rpsChoice, data.choice);
+            }
+        }
+
+        function determineRPS(me, enemy) {
+            if(!me || !enemy) return;
+            let res = "SERI!";
+            if ((me=='🪨' && enemy=='✂️') || (me=='📄' && enemy=='🪨') || (me=='✂️' && enemy=='📄')) res = "KAMU MENANG!";
+            else if (me !== enemy) res = "KAMU KALAH!";
+            document.getElementById('game-result').innerText = `Kamu: ${me} vs Lawan: ${enemy} -> ${res}`;
+        }
+
+        // --- 3. DICE BATTLE ---
+        function setupDice(container, title) {
+            title.innerText = "Dice Battle";
+            container.innerHTML = `
+                <div class="big-text" id="dice-val">🎲</div>
+                <button onclick="rollDice()">ROLL</button>
+            `;
+        }
+        function rollDice() {
+            const val = Math.floor(Math.random() * 6) + 1;
+            document.getElementById('dice-val').innerText = val;
+            broadcastMove({ val: val, id: myId });
+            document.getElementById('game-result').innerText = `Kamu dapat ${val}`;
+        }
+        function handleDice(data) {
+            if(data.id !== myId) {
+                // Tampilkan hasil lawan (simplifikasi: hanya menampilkan log)
+                const currentText = document.getElementById('game-result').innerText;
+                document.getElementById('game-result').innerText = `${currentText} | Lawan dapat ${data.val}`;
+            }
+        }
+
+        // --- 4. QUICK MATH ---
+        function setupMath(container, title) {
+            title.innerText = "Quick Math Duel";
+            if (isHost) {
+                const a = Math.floor(Math.random()*10);
+                const b = Math.floor(Math.random()*10);
+                broadcastMove({ action: 'new_q', q: `${a} + ${b}`, a: a+b });
+            } else {
+                container.innerHTML = "<p>Menunggu Host membuat soal...</p>";
+            }
+        }
+        
+        let mathAns = 0;
+        function handleMath(data) {
+            if (data.action === 'new_q') {
+                mathAns = data.a;
+                document.getElementById('game-container').innerHTML = `
+                    <div class="big-text">${data.q} = ?</div>
+                    <input type="number" id="math-in" oninput="checkMath(this.value)">
+                `;
+            } else if (data.action === 'winner') {
+                document.getElementById('game-result').innerText = (data.id === myId) ? "KAMU MENANG!" : "LAWAN MENANG!";
+                document.getElementById('math-in').disabled = true;
+            }
+        }
+
+        function checkMath(val) {
+            if (parseInt(val) === mathAns) {
+                broadcastMove({ action: 'winner', id: myId });
+                handleMath({ action: 'winner', id: myId }); // Trigger local win
+            }
+        }
+
+        // --- 5. WORD RACE ---
+        const words = ["pisang", "kuda", "komputer", "internet", "indonesia"];
+        function setupWord(container, title) {
+            title.innerText = "Word Race";
+            if (isHost) {
+                const w = words[Math.floor(Math.random() * words.length)];
+                broadcastMove({ action: 'word_q', w: w });
+            }
+        }
+        
+        let targetWord = "";
+        function handleWord(data) {
+            if(data.action === 'word_q') {
+                targetWord = data.w;
+                document.getElementById('game-container').innerHTML = `
+                    <p>Ketik cepat:</p>
+                    <div class="big-text" style="color:var(--primary)">${targetWord}</div>
+                    <input type="text" oninput="checkWord(this.value)">
+                `;
+            } else if (data.action === 'winner') {
+                document.getElementById('game-result').innerText = (data.id === myId) ? "KAMU MENANG!" : "LAWAN MENANG!";
+                document.querySelector('input').disabled = true;
+            }
+        }
+
+        function checkWord(val) {
+            if (val === targetWord) {
+                broadcastMove({ action: 'winner', id: myId });
+                handleWord({ action: 'winner', id: myId });
+            }
+        }
+
+    </script>
+</body>
+</html>
