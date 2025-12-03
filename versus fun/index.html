@@ -194,24 +194,30 @@
 
     <script>
         // --- 1. CONFIGURATION ---
-        // PASTIKAN KEY INI BENAR (Cek spasi di awal/akhir saat copas)
+        // MASUKKAN KREDENSIAL SUPABASE ANDA DI SINI
         const SUPABASE_URL = 'https://tbusnooxowzqozuvczbo.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRidXNub294b3d6cW96dXZjemJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ3MzA2NDQsImV4cCI6MjA4MDMwNjY0NH0.O_zyLs_gwD2EhdiqakEY8FVzcTcK22OI-a2UmEdE-NY';
 
-        // Initialize Supabase
-        let supabase;
-        try {
-            supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            console.log("Supabase Client Initialized");
-        } catch (err) {
-            alert("Gagal inisialisasi Supabase. Cek URL/Key di kodingan.");
-            console.error(err);
-        }
-
         // --- GLOBAL VARIABLES ---
+        let supabaseClient = null; // Ganti nama variabel agar tidak bentrok
         let myId = Math.random().toString(36).substr(2, 6).toUpperCase();
         let channel = null;
         let isHost = false; 
+
+        // --- INITIALIZATION ---
+        // Kita bungkus dalam try-catch agar aman
+        try {
+            // Kita akses library via window.supabase untuk memastikan mengambil dari CDN
+            if (window.supabase) {
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                console.log("Supabase Client Berhasil Di-load!");
+            } else {
+                alert("Library Supabase belum ter-load. Cek koneksi internet.");
+            }
+        } catch (err) {
+            console.error("Error Init:", err);
+            alert("Gagal inisialisasi. Cek Console.");
+        }
 
         // --- NAVIGATION ---
         function showScreen(id) {
@@ -232,8 +238,14 @@
             document.getElementById('game-result').innerText = '';
         }
 
-        // --- 2. CORE CONNECTION LOGIC (FIXED) ---
+        // --- 2. CORE CONNECTION LOGIC ---
         async function joinRoom() {
+            // VALIDASI: Pastikan Client sudah ada
+            if (!supabaseClient) {
+                alert("Koneksi Supabase Gagal/Belum Siap. Cek API URL & Key di kodingan.");
+                return;
+            }
+
             const code = document.getElementById('room-code').value.trim();
             if (!code) return alert("Isi kode ruangan dulu!");
 
@@ -246,12 +258,12 @@
             msg.style.display = 'block';
 
             // Bersihkan channel lama jika ada
-            if (channel) await supabase.removeChannel(channel);
+            if (channel) await supabaseClient.removeChannel(channel);
 
             console.log(`Connecting to room: room_${code}`);
 
-            // Buat Channel Baru
-            channel = supabase.channel(`room_${code}`, {
+            // Buat Channel Baru (Gunakan supabaseClient, BUKAN supabase)
+            channel = supabaseClient.channel(`room_${code}`, {
                 config: { presence: { key: myId } }
             });
 
@@ -263,7 +275,6 @@
                     console.log("Presence Sync:", users);
                     document.getElementById('status-bar').innerText = `Room: ${code} | Players: ${users.length}/2`;
                     
-                    // Logic Host sederhana: User dengan ID string terkecil jadi host (konsisten di kedua device)
                     users.sort();
                     isHost = (users[0] === myId); 
                 })
@@ -276,19 +287,17 @@
                 console.log("Subscription Status:", status);
                 
                 if (status === 'SUBSCRIBED') {
-                    // BERHASIL! Baru kita pindah layar
                     await channel.track({ online_at: new Date().toISOString() });
                     btn.disabled = false;
                     btn.innerText = "CONNECT";
                     msg.style.display = 'none';
                     showScreen('menu');
                 } else {
-                    // GAGAL
                     console.error("Supabase Error:", err);
                     btn.disabled = false;
                     btn.innerText = "RETRY";
                     msg.innerText = "Gagal Konek. Cek Console & API Key.";
-                    alert("Gagal terhubung ke server. Cek API Key & URL Supabase Anda.");
+                    alert("Gagal terhubung. Pastikan API URL & KEY benar.");
                 }
             });
         }
@@ -341,17 +350,15 @@
         }
         function clkTTT(i) {
             if(tttBoard[i] || document.getElementById('game-result').innerText) return;
-            // Kirim move
-            sendMove({ idx: i, p: tttTurn }); // Optimistic UI update di handleMove
-            updateTTT({ idx: i, p: tttTurn }); // Update diri sendiri langsung
+            sendMove({ idx: i, p: tttTurn });
+            updateTTT({ idx: i, p: tttTurn });
         }
         function updateTTT(d) {
-            if(tttBoard[d.idx]) return; // Cegah double
+            if(tttBoard[d.idx]) return;
             tttBoard[d.idx] = d.p;
             document.getElementById(`c-${d.idx}`).innerText = d.p;
             document.getElementById(`c-${d.idx}`).style.color = d.p === 'X' ? 'var(--neon-blue)' : 'var(--neon-pink)';
             
-            // Cek Win
             const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
             let winner = null;
             wins.forEach(w => {
@@ -381,19 +388,13 @@
         function pickRPS(c) {
             myRPS = c;
             document.getElementById('rps-status').innerText = `Kamu pilih ${c}. Menunggu lawan...`;
-            sendMove({ action: 'pick', id: myId }); // Beritahu lawan kita sudah milih (tanpa kasih tau apa)
+            sendMove({ action: 'pick', id: myId });
         }
         function updateRPS(d) {
             if(d.action === 'pick' && d.id !== myId) {
-                // Lawan sudah milih
-                if(myRPS) {
-                    // Kita juga sudah milih -> REVEAL
-                    sendMove({ action: 'reveal', c: myRPS, id: myId });
-                } else {
-                    document.getElementById('game-result').innerText = "Lawan sudah siap! Giliranmu.";
-                }
+                if(myRPS) sendMove({ action: 'reveal', c: myRPS, id: myId });
+                else document.getElementById('game-result').innerText = "Lawan sudah siap! Giliranmu.";
             } else if (d.action === 'reveal' && d.id !== myId) {
-                // Lawan reveal, kita bandingkan
                 let res = "SERI";
                 let enemy = d.c;
                 if((myRPS=='✊'&&enemy=='✌️') || (myRPS=='🖐️'&&enemy=='✊') || (myRPS=='✌️'&&enemy=='🖐️')) res = "MENANG!";
@@ -408,7 +409,6 @@
             if(isHost) {
                 let a = Math.floor(Math.random()*20), b = Math.floor(Math.random()*20);
                 sendMove({ t: 'q', q: `${a} + ${b}`, a: a+b });
-                // Host juga harus render diri sendiri
                 renderMath(box, `${a} + ${b}`, a+b);
             } else {
                 box.innerHTML = "<p>Menunggu Host...</p>";
@@ -485,7 +485,7 @@
                  let inp = document.querySelector('input'); if(inp) inp.disabled = true;
             }
         }
-
     </script>
 </body>
 </html>
+
