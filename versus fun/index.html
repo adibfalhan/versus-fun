@@ -3,432 +3,486 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Versus Arena - 5 Mini Games</title>
+    <title>Versus Arena - Neon Edition</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
-            --primary: #00f2ea;
-            --secondary: #ff0050;
-            --bg: #0f0e17;
-            --card: #232136;
-            --text: #fffffe;
+            --neon-blue: #00f3ff;
+            --neon-pink: #bc13fe;
+            --bg-dark: #050505;
+            --glass: rgba(255, 255, 255, 0.05);
         }
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
+            background-color: var(--bg-dark);
+            color: white;
             margin: 0;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             text-align: center;
-            overflow-x: hidden;
+            overflow: hidden; /* Mencegah scroll saat animasi */
         }
 
-        .screen { display: none; width: 100%; max-width: 500px; padding: 20px; box-sizing: border-box; }
-        .active { display: block; animation: fadeIn 0.5s; }
+        /* --- ANIMATED BACKGROUND --- */
+        .background-anim {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(45deg, #0f0c29, #302b63, #24243e);
+            background-size: 400% 400%;
+            z-index: -2;
+            animation: gradientBG 15s ease infinite;
+        }
 
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
 
-        h1 { font-size: 2.5rem; text-transform: uppercase; letter-spacing: 2px; text-shadow: 2px 2px var(--secondary); margin-bottom: 10px; }
-        h2 { color: var(--primary); }
+        /* Partikel Melayang */
+        .particles span {
+            position: absolute;
+            bottom: -50px;
+            background: transparent;
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--neon-blue), 0 0 20px var(--neon-pink);
+            animation: animateParticles 10s linear infinite;
+            z-index: -1;
+        }
+        .particles span:nth-child(1) { left: 10%; width: 20px; height: 20px; animation-duration: 7s; }
+        .particles span:nth-child(2) { left: 30%; width: 40px; height: 40px; animation-duration: 10s; animation-delay: 2s; }
+        .particles span:nth-child(3) { left: 70%; width: 15px; height: 15px; animation-duration: 5s; animation-delay: 1s; }
+        .particles span:nth-child(4) { left: 90%; width: 30px; height: 30px; animation-duration: 9s; animation-delay: 0s; }
+
+        @keyframes animateParticles {
+            0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+            20% { opacity: 1; }
+            100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
+        }
+
+        /* --- UI COMPONENTS --- */
+        .screen { display: none; width: 100%; max-width: 480px; padding: 20px; z-index: 10; }
+        .active { display: block; animation: zoomIn 0.4s ease-out; }
+
+        @keyframes zoomIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        h1 {
+            font-size: 3rem;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px var(--neon-blue), 0 0 20px var(--neon-blue);
+        }
+
+        .glass-panel {
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 30px 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        input {
+            width: 80%;
+            padding: 15px;
+            border-radius: 50px;
+            border: 2px solid var(--neon-blue);
+            background: rgba(0,0,0,0.5);
+            color: white;
+            font-size: 1.2rem;
+            text-align: center;
+            outline: none;
+            margin-bottom: 20px;
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
+        }
 
         button {
-            background: var(--secondary);
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-pink));
             color: white;
             border: none;
-            padding: 15px 30px;
+            padding: 15px 40px;
             font-size: 1.2rem;
-            cursor: pointer;
             border-radius: 50px;
-            margin: 10px;
-            transition: transform 0.2s, box-shadow 0.2s;
-            width: 80%;
+            cursor: pointer;
             font-weight: bold;
-        }
-        button:hover { transform: scale(1.05); box-shadow: 0 0 15px var(--secondary); }
-        button.secondary { background: transparent; border: 2px solid var(--primary); color: var(--primary); }
-        
-        input {
-            padding: 15px;
-            border-radius: 10px;
-            border: 2px solid var(--card);
-            background: var(--card);
-            color: white;
-            font-size: 1.2rem;
-            width: 70%;
-            margin-bottom: 20px;
-            text-align: center;
+            transition: 0.3s;
+            text-transform: uppercase;
+            box-shadow: 0 0 15px rgba(188, 19, 254, 0.5);
+            width: 100%;
+            margin-top: 10px;
         }
 
-        /* Grid untuk Menu Game */
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px var(--neon-pink);
+        }
+
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
         .game-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
         .game-card {
-            background: var(--card);
-            padding: 20px;
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
             border-radius: 15px;
             cursor: pointer;
-            border: 2px solid transparent;
+            border: 1px solid transparent;
             transition: 0.3s;
         }
-        .game-card:hover { border-color: var(--primary); transform: translateY(-5px); }
-        .game-icon { font-size: 2rem; display: block; margin-bottom: 10px; }
+        .game-card:hover { border-color: var(--neon-blue); background: rgba(0, 243, 255, 0.1); }
+        .game-icon { font-size: 2.5rem; display: block; margin-bottom: 5px; }
 
-        /* Game Specific Styles */
-        .game-area { background: var(--card); padding: 20px; border-radius: 15px; margin-top: 20px; min-height: 300px; display: flex; flex-direction: column; justify-content: center; align-items: center;}
+        /* Game Specific */
+        .ttt-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; width: 220px; margin: 20px auto; }
+        .ttt-cell { height: 70px; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 2.5rem; cursor: pointer; border-radius: 5px; }
         
-        /* Tic Tac Toe */
-        .ttt-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; width: 200px; margin: 0 auto; }
-        .ttt-cell { height: 60px; background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 2rem; cursor: pointer; }
-        
-        /* RPS */
-        .rps-choices { display: flex; gap: 10px; justify-content: center; }
-        .rps-btn { font-size: 2rem; width: auto; padding: 10px; background: var(--card); border: 2px solid var(--primary); }
-        
-        /* Math & Word */
-        .big-text { font-size: 3rem; margin: 20px 0; font-weight: bold; }
-        
-        /* Status Bar */
-        #status-bar { margin-bottom: 15px; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px; font-size: 0.9rem;}
-        .hidden { display: none !important; }
+        #loading-msg { color: var(--neon-blue); margin-top: 10px; font-style: italic; display: none; }
     </style>
 </head>
 <body>
 
+    <div class="background-anim"></div>
+    <div class="particles">
+        <span></span><span></span><span></span><span></span>
+    </div>
+
     <div id="screen-landing" class="screen active">
-        <h1>Versus<br><span style="color:var(--primary)">Arena</span></h1>
-        <p>Platform 1v1 Multiplayer Realtime</p>
-        <br>
-        <button onclick="goToLobby()">PLAY NOW</button>
+        <div class="glass-panel">
+            <h1>VERSUS<br><span style="color:var(--neon-blue)">ARENA</span></h1>
+            <p style="letter-spacing: 1px;">Realtime Multiplayer Battle</p>
+            <br>
+            <button onclick="goToLobby()">PLAY GAME</button>
+        </div>
     </div>
 
     <div id="screen-lobby" class="screen">
-        <h2>Lobby</h2>
-        <p>Masukkan kode ruangan yang sama untuk bermain berdua.</p>
-        <input type="text" id="room-code" placeholder="Contoh: 1234" maxlength="6">
-        <br>
-        <button onclick="joinRoom()">GABUNG ROOM</button>
-        <button class="secondary" onclick="backTo('landing')">KEMBALI</button>
+        <div class="glass-panel">
+            <h2 style="color:var(--neon-blue)">JOIN ROOM</h2>
+            <p>Masukkan Kode Room (Bebas)</p>
+            <input type="text" id="room-code" placeholder="Cth: 777" maxlength="6">
+            <button id="btn-join" onclick="joinRoom()">CONNECT</button>
+            <button onclick="backTo('landing')" style="background: transparent; border: 1px solid white; box-shadow: none; margin-top: 15px;">BACK</button>
+            <p id="loading-msg">Menghubungkan ke Server...</p>
+        </div>
     </div>
 
     <div id="screen-menu" class="screen">
-        <div id="status-bar">Menunggu lawan...</div>
-        <h2>Pilih Game</h2>
+        <div id="status-bar" style="background: rgba(0,0,0,0.5); padding: 5px; border-radius: 10px; margin-bottom: 10px; font-size: 0.9rem;">Waiting...</div>
+        <h2 style="margin: 0;">PILIH GAME</h2>
         <div class="game-grid">
-            <div class="game-card" onclick="selectGame('tictactoe')">
-                <span class="game-icon">❌⭕</span> Tic Tac Toe
-            </div>
-            <div class="game-card" onclick="selectGame('rps')">
-                <span class="game-icon">✂️🪨📄</span> Rock Paper Scissor
-            </div>
-            <div class="game-card" onclick="selectGame('math')">
-                <span class="game-icon">➕➖</span> Quick Math
-            </div>
-            <div class="game-card" onclick="selectGame('dice')">
-                <span class="game-icon">🎲</span> Dice Battle
-            </div>
-            <div class="game-card" onclick="selectGame('word')">
-                <span class="game-icon">⌨️</span> Word Race
-            </div>
+            <div class="game-card" onclick="selectGame('tictactoe')"><span class="game-icon">❌⭕</span>TicTacToe</div>
+            <div class="game-card" onclick="selectGame('rps')"><span class="game-icon">✂️🪨</span>Suit</div>
+            <div class="game-card" onclick="selectGame('math')"><span class="game-icon">🔢</span>Math</div>
+            <div class="game-card" onclick="selectGame('dice')"><span class="game-icon">🎲</span>Dice</div>
+            <div class="game-card" onclick="selectGame('word')"><span class="game-icon">⌨️</span>Typing</div>
         </div>
     </div>
 
     <div id="screen-game" class="screen">
-        <button class="secondary" style="font-size: 0.8rem; padding: 5px 10px; width: auto;" onclick="backToMenu()">Keluar Game</button>
-        <h2 id="game-title">Game Title</h2>
-        <div id="game-container" class="game-area">
-            </div>
-        <p id="game-result"></p>
+        <button onclick="backToMenu()" style="padding: 5px 15px; width: auto; font-size: 0.8rem; background: #333; box-shadow: none;">EXIT</button>
+        <h2 id="game-title" style="color:var(--neon-pink); margin-top:10px;">Game</h2>
+        <div id="game-container" class="glass-panel" style="min-height: 250px; display:flex; flex-direction:column; justify-content:center; align-items:center;"></div>
+        <h3 id="game-result" style="color: yellow; text-shadow: 0 0 5px orange;"></h3>
     </div>
 
     <script>
-        // --- KONFIGURASI SUPABASE ---
-        // GANTI DENGAN KREDENSIAL ANDA SENDIRI
-        const SUPABASE_URL = 'https://tbusnooxowzqozuvczbo.supabase.co';
+        // --- 1. CONFIGURATION ---
+        // PASTIKAN KEY INI BENAR (Cek spasi di awal/akhir saat copas)
+        const SUPABASE_URL = 'https://tbusnooxowzqozuvczbo.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRidXNub294b3d6cW96dXZjemJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ3MzA2NDQsImV4cCI6MjA4MDMwNjY0NH0.O_zyLs_gwD2EhdiqakEY8FVzcTcK22OI-a2UmEdE-NY';
-        
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // --- GLOBAL STATE ---
-        let myId = Math.random().toString(36).substr(2, 9); // ID Unik sementara
-        let channel;
-        let currentRoom = '';
-        let isHost = false; // Pemain pertama yang join dianggap host logika
-        
-        // --- NAVIGASI ---
+        // Initialize Supabase
+        let supabase;
+        try {
+            supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            console.log("Supabase Client Initialized");
+        } catch (err) {
+            alert("Gagal inisialisasi Supabase. Cek URL/Key di kodingan.");
+            console.error(err);
+        }
+
+        // --- GLOBAL VARIABLES ---
+        let myId = Math.random().toString(36).substr(2, 6).toUpperCase();
+        let channel = null;
+        let isHost = false; 
+
+        // --- NAVIGATION ---
         function showScreen(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(`screen-${id}`).classList.add('active');
         }
         function backTo(screen) { showScreen(screen); }
         function goToLobby() { showScreen('lobby'); }
-        function backToMenu() { 
-            channel.send({ type: 'broadcast', event: 'back_to_menu', payload: {} });
-            showScreen('menu'); 
+        
+        function backToMenu() {
+            if(channel) channel.send({ type: 'broadcast', event: 'force_menu', payload: {} });
+            resetGameUI();
+            showScreen('menu');
+        }
+
+        function resetGameUI() {
             document.getElementById('game-container').innerHTML = '';
             document.getElementById('game-result').innerText = '';
         }
 
-        // --- REALTIME CONNECTION ---
+        // --- 2. CORE CONNECTION LOGIC (FIXED) ---
         async function joinRoom() {
-            const code = document.getElementById('room-code').value;
-            if (!code) return alert("Masukkan kode ruangan!");
-            currentRoom = code;
-            
-            showScreen('menu');
-            document.getElementById('status-bar').innerText = `Room: ${code} | Menghubungkan...`;
+            const code = document.getElementById('room-code').value.trim();
+            if (!code) return alert("Isi kode ruangan dulu!");
 
-            // Setup Channel Supabase
+            const btn = document.getElementById('btn-join');
+            const msg = document.getElementById('loading-msg');
+            
+            // UI Loading State
+            btn.disabled = true;
+            btn.innerText = "CONNECTING...";
+            msg.style.display = 'block';
+
+            // Bersihkan channel lama jika ada
+            if (channel) await supabase.removeChannel(channel);
+
+            console.log(`Connecting to room: room_${code}`);
+
+            // Buat Channel Baru
             channel = supabase.channel(`room_${code}`, {
                 config: { presence: { key: myId } }
             });
 
+            // Listener Event
             channel
-            .on('presence', { event: 'sync' }, () => {
-                const state = channel.presenceState();
-                const users = Object.keys(state).length;
-                document.getElementById('status-bar').innerText = `Room: ${code} | Pemain: ${users}/2`;
-                if(users === 1) isHost = true; // Orang pertama jadi host
-            })
-            .on('broadcast', { event: 'select_game' }, ({ payload }) => {
-                loadGameUI(payload.game);
-            })
-            .on('broadcast', { event: 'game_data' }, ({ payload }) => {
-                handleGameData(payload);
-            })
-            .on('broadcast', { event: 'back_to_menu' }, () => {
-                showScreen('menu');
-            })
-            .subscribe(async (status) => {
+                .on('presence', { event: 'sync' }, () => {
+                    const state = channel.presenceState();
+                    const users = Object.keys(state);
+                    console.log("Presence Sync:", users);
+                    document.getElementById('status-bar').innerText = `Room: ${code} | Players: ${users.length}/2`;
+                    
+                    // Logic Host sederhana: User dengan ID string terkecil jadi host (konsisten di kedua device)
+                    users.sort();
+                    isHost = (users[0] === myId); 
+                })
+                .on('broadcast', { event: 'select_game' }, ({ payload }) => loadGame(payload.game))
+                .on('broadcast', { event: 'game_move' }, ({ payload }) => handleMove(payload))
+                .on('broadcast', { event: 'force_menu' }, () => { resetGameUI(); showScreen('menu'); });
+
+            // Subscribe dengan Callback Status
+            channel.subscribe(async (status, err) => {
+                console.log("Subscription Status:", status);
+                
                 if (status === 'SUBSCRIBED') {
+                    // BERHASIL! Baru kita pindah layar
                     await channel.track({ online_at: new Date().toISOString() });
+                    btn.disabled = false;
+                    btn.innerText = "CONNECT";
+                    msg.style.display = 'none';
+                    showScreen('menu');
+                } else {
+                    // GAGAL
+                    console.error("Supabase Error:", err);
+                    btn.disabled = false;
+                    btn.innerText = "RETRY";
+                    msg.innerText = "Gagal Konek. Cek Console & API Key.";
+                    alert("Gagal terhubung ke server. Cek API Key & URL Supabase Anda.");
                 }
             });
         }
 
-        function selectGame(gameType) {
-            // Kirim sinyal ke lawan bahwa kita memilih game ini
-            channel.send({
-                type: 'broadcast',
-                event: 'select_game',
-                payload: { game: gameType }
-            });
-            loadGameUI(gameType);
+        // --- 3. GAME MANAGER ---
+        let currGame = '';
+
+        function selectGame(game) {
+            channel.send({ type: 'broadcast', event: 'select_game', payload: { game: game } });
+            loadGame(game);
         }
 
-        // --- GAME LOGIC MANAGER ---
-        let currentGame = '';
-
-        function loadGameUI(gameType) {
-            currentGame = gameType;
+        function loadGame(game) {
+            currGame = game;
+            resetGameUI();
             showScreen('game');
-            const container = document.getElementById('game-container');
             const title = document.getElementById('game-title');
-            document.getElementById('game-result').innerText = '';
-            
-            container.innerHTML = ''; // Reset
+            const container = document.getElementById('game-container');
 
-            if (gameType === 'tictactoe') setupTicTacToe(container, title);
-            else if (gameType === 'rps') setupRPS(container, title);
-            else if (gameType === 'dice') setupDice(container, title);
-            else if (gameType === 'math') setupMath(container, title);
-            else if (gameType === 'word') setupWord(container, title);
+            if (game === 'tictactoe') initTTT(container, title);
+            else if (game === 'rps') initRPS(container, title);
+            else if (game === 'dice') initDice(container, title);
+            else if (game === 'math') initMath(container, title);
+            else if (game === 'word') initWord(container, title);
         }
 
-        function broadcastMove(data) {
-            channel.send({ type: 'broadcast', event: 'game_data', payload: data });
+        function sendMove(data) {
+            channel.send({ type: 'broadcast', event: 'game_move', payload: data });
         }
 
-        function handleGameData(data) {
-            if (currentGame === 'tictactoe') handleTicTacToe(data);
-            else if (currentGame === 'rps') handleRPS(data);
-            else if (currentGame === 'dice') handleDice(data);
-            else if (currentGame === 'math') handleMath(data);
-            else if (currentGame === 'word') handleWord(data);
+        function handleMove(data) {
+            if (currGame === 'tictactoe') updateTTT(data);
+            else if (currGame === 'rps') updateRPS(data);
+            else if (currGame === 'dice') updateDice(data);
+            else if (currGame === 'math') updateMath(data);
+            else if (currGame === 'word') updateWord(data);
         }
 
-        // --- 1. TIC TAC TOE ---
-        let tttBoard = Array(9).fill(null);
-        let tttTurn = 'X'; // X jalan duluan
-        
-        function setupTicTacToe(container, title) {
-            title.innerText = "Tic Tac Toe";
+        // --- GAME 1: TIC TAC TOE ---
+        let tttBoard = [];
+        let tttTurn = 'X';
+        function initTTT(box, title) {
+            title.innerText = "TIC TAC TOE";
             tttBoard = Array(9).fill(null);
             tttTurn = 'X';
-            let html = `<div class="ttt-grid">`;
-            for(let i=0; i<9; i++) {
-                html += `<div class="ttt-cell" id="cell-${i}" onclick="clickTTT(${i})"></div>`;
-            }
-            html += `</div><p id="ttt-status">Giliran: X</p>`;
-            container.innerHTML = html;
+            let html = '<div class="ttt-grid">';
+            for(let i=0; i<9; i++) html += `<div id="c-${i}" class="ttt-cell" onclick="clkTTT(${i})"></div>`;
+            html += '</div><p id="ttt-info">Turn: X</p>';
+            box.innerHTML = html;
         }
-
-        function clickTTT(index) {
-            // Logika sederhana: anggap Host selalu X, Joiner selalu O (untuk demo)
-            // Atau siapa cepat dia dapat. Untuk simpel:
-            if (tttBoard[index]) return;
+        function clkTTT(i) {
+            if(tttBoard[i] || document.getElementById('game-result').innerText) return;
+            // Kirim move
+            sendMove({ idx: i, p: tttTurn }); // Optimistic UI update di handleMove
+            updateTTT({ idx: i, p: tttTurn }); // Update diri sendiri langsung
+        }
+        function updateTTT(d) {
+            if(tttBoard[d.idx]) return; // Cegah double
+            tttBoard[d.idx] = d.p;
+            document.getElementById(`c-${d.idx}`).innerText = d.p;
+            document.getElementById(`c-${d.idx}`).style.color = d.p === 'X' ? 'var(--neon-blue)' : 'var(--neon-pink)';
             
-            // Update lokal dulu (optimistic UI)
-            updateTTTUI(index, tttTurn);
-            
-            // Kirim ke lawan
-            broadcastMove({ index: index, player: tttTurn });
-        }
-
-        function handleTicTacToe(data) {
-            updateTTTUI(data.index, data.player);
-        }
-
-        function updateTTTUI(index, player) {
-            tttBoard[index] = player;
-            document.getElementById(`cell-${index}`).innerText = player;
-            checkTTTWin();
-            tttTurn = (player === 'X') ? 'O' : 'X';
-            document.getElementById('ttt-status').innerText = `Giliran: ${tttTurn}`;
-        }
-
-        function checkTTTWin() {
+            // Cek Win
             const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-            wins.forEach(combo => {
-                const [a,b,c] = combo;
-                if(tttBoard[a] && tttBoard[a] === tttBoard[b] && tttBoard[a] === tttBoard[c]) {
-                    document.getElementById('game-result').innerText = `${tttBoard[a]} MENANG!`;
-                }
+            let winner = null;
+            wins.forEach(w => {
+                if(tttBoard[w[0]] && tttBoard[w[0]] === tttBoard[w[1]] && tttBoard[w[0]] === tttBoard[w[2]]) winner = tttBoard[w[0]];
             });
+
+            if(winner) document.getElementById('game-result').innerText = `${winner} WINS!`;
+            else if(!tttBoard.includes(null)) document.getElementById('game-result').innerText = "DRAW!";
+            
+            tttTurn = d.p === 'X' ? 'O' : 'X';
+            document.getElementById('ttt-info').innerText = `Turn: ${tttTurn}`;
         }
 
-        // --- 2. ROCK PAPER SCISSOR ---
-        let rpsChoice = null;
-        
-        function setupRPS(container, title) {
-            title.innerText = "Batu Gunting Kertas";
-            container.innerHTML = `
-                <div class="rps-choices">
-                    <button class="rps-btn" onclick="playRPS('🪨')">🪨</button>
-                    <button class="rps-btn" onclick="playRPS('📄')">📄</button>
-                    <button class="rps-btn" onclick="playRPS('✂️')">✂️</button>
+        // --- GAME 2: ROCK PAPER SCISSOR ---
+        function initRPS(box, title) {
+            title.innerText = "ROCK PAPER SCISSOR";
+            box.innerHTML = `
+                <div style="display:flex; gap:10px;">
+                    <button onclick="pickRPS('✊')" style="font-size:2rem; padding:10px;">✊</button>
+                    <button onclick="pickRPS('🖐️')" style="font-size:2rem; padding:10px;">🖐️</button>
+                    <button onclick="pickRPS('✌️')" style="font-size:2rem; padding:10px;">✌️</button>
                 </div>
-                <p>Pilih senjatamu!</p>
-            `;
-            rpsChoice = null;
-        }
-
-        function playRPS(choice) {
-            rpsChoice = choice;
-            document.getElementById('game-result').innerText = `Kamu memilih ${choice}. Menunggu lawan...`;
-            broadcastMove({ action: 'picked', id: myId });
-        }
-
-        let opponentRPS = false;
-        function handleRPS(data) {
-            if (data.action === 'picked' && data.id !== myId) {
-                opponentRPS = true;
-                if(rpsChoice) revealRPS(data.choice); // Jika kita sudah pilih, kita minta reveal (Logic butuh 2 tahap aman, ini versi simple)
-                else document.getElementById('game-result').innerText = "Lawan sudah memilih!";
-                
-                // Note: Versi production harusnya kirim hash dulu baru reveal. 
-                // Di sini kita langsung kirim pilihan saat kedua player ready (Logic disederhanakan)
-                if(opponentRPS && rpsChoice) broadcastMove({ action: 'reveal', choice: rpsChoice, id: myId });
-            }
-            if (data.action === 'reveal' && data.id !== myId) {
-                determineRPS(rpsChoice, data.choice);
-            }
-        }
-
-        function determineRPS(me, enemy) {
-            if(!me || !enemy) return;
-            let res = "SERI!";
-            if ((me=='🪨' && enemy=='✂️') || (me=='📄' && enemy=='🪨') || (me=='✂️' && enemy=='📄')) res = "KAMU MENANG!";
-            else if (me !== enemy) res = "KAMU KALAH!";
-            document.getElementById('game-result').innerText = `Kamu: ${me} vs Lawan: ${enemy} -> ${res}`;
-        }
-
-        // --- 3. DICE BATTLE ---
-        function setupDice(container, title) {
-            title.innerText = "Dice Battle";
-            container.innerHTML = `
-                <div class="big-text" id="dice-val">🎲</div>
-                <button onclick="rollDice()">ROLL</button>
+                <p id="rps-status">Pilih Tanganmu!</p>
             `;
         }
-        function rollDice() {
-            const val = Math.floor(Math.random() * 6) + 1;
-            document.getElementById('dice-val').innerText = val;
-            broadcastMove({ val: val, id: myId });
-            document.getElementById('game-result').innerText = `Kamu dapat ${val}`;
+        let myRPS = null;
+        function pickRPS(c) {
+            myRPS = c;
+            document.getElementById('rps-status').innerText = `Kamu pilih ${c}. Menunggu lawan...`;
+            sendMove({ action: 'pick', id: myId }); // Beritahu lawan kita sudah milih (tanpa kasih tau apa)
         }
-        function handleDice(data) {
-            if(data.id !== myId) {
-                // Tampilkan hasil lawan (simplifikasi: hanya menampilkan log)
-                const currentText = document.getElementById('game-result').innerText;
-                document.getElementById('game-result').innerText = `${currentText} | Lawan dapat ${data.val}`;
+        function updateRPS(d) {
+            if(d.action === 'pick' && d.id !== myId) {
+                // Lawan sudah milih
+                if(myRPS) {
+                    // Kita juga sudah milih -> REVEAL
+                    sendMove({ action: 'reveal', c: myRPS, id: myId });
+                } else {
+                    document.getElementById('game-result').innerText = "Lawan sudah siap! Giliranmu.";
+                }
+            } else if (d.action === 'reveal' && d.id !== myId) {
+                // Lawan reveal, kita bandingkan
+                let res = "SERI";
+                let enemy = d.c;
+                if((myRPS=='✊'&&enemy=='✌️') || (myRPS=='🖐️'&&enemy=='✊') || (myRPS=='✌️'&&enemy=='🖐️')) res = "MENANG!";
+                else if(myRPS !== enemy) res = "KALAH!";
+                document.getElementById('game-result').innerText = `Kamu: ${myRPS} vs Lawan: ${enemy} = ${res}`;
             }
         }
 
-        // --- 4. QUICK MATH ---
-        function setupMath(container, title) {
-            title.innerText = "Quick Math Duel";
-            if (isHost) {
-                const a = Math.floor(Math.random()*10);
-                const b = Math.floor(Math.random()*10);
-                broadcastMove({ action: 'new_q', q: `${a} + ${b}`, a: a+b });
+        // --- GAME 3: MATH DUEL ---
+        function initMath(box, title) {
+            title.innerText = "MATH DUEL";
+            if(isHost) {
+                let a = Math.floor(Math.random()*20), b = Math.floor(Math.random()*20);
+                sendMove({ t: 'q', q: `${a} + ${b}`, a: a+b });
+                // Host juga harus render diri sendiri
+                renderMath(box, `${a} + ${b}`, a+b);
             } else {
-                container.innerHTML = "<p>Menunggu Host membuat soal...</p>";
+                box.innerHTML = "<p>Menunggu Host...</p>";
             }
         }
-        
         let mathAns = 0;
-        function handleMath(data) {
-            if (data.action === 'new_q') {
-                mathAns = data.a;
-                document.getElementById('game-container').innerHTML = `
-                    <div class="big-text">${data.q} = ?</div>
-                    <input type="number" id="math-in" oninput="checkMath(this.value)">
-                `;
-            } else if (data.action === 'winner') {
-                document.getElementById('game-result').innerText = (data.id === myId) ? "KAMU MENANG!" : "LAWAN MENANG!";
-                document.getElementById('math-in').disabled = true;
-            }
+        function renderMath(box, q, a) {
+            mathAns = a;
+            box.innerHTML = `<h1 style="font-size:3rem">${q}</h1><input type="number" oninput="chkMath(this.value)">`;
+            document.querySelector('input').focus();
         }
-
-        function checkMath(val) {
-            if (parseInt(val) === mathAns) {
-                broadcastMove({ action: 'winner', id: myId });
-                handleMath({ action: 'winner', id: myId }); // Trigger local win
-            }
-        }
-
-        // --- 5. WORD RACE ---
-        const words = ["pisang", "kuda", "komputer", "internet", "indonesia"];
-        function setupWord(container, title) {
-            title.innerText = "Word Race";
-            if (isHost) {
-                const w = words[Math.floor(Math.random() * words.length)];
-                broadcastMove({ action: 'word_q', w: w });
-            }
-        }
-        
-        let targetWord = "";
-        function handleWord(data) {
-            if(data.action === 'word_q') {
-                targetWord = data.w;
-                document.getElementById('game-container').innerHTML = `
-                    <p>Ketik cepat:</p>
-                    <div class="big-text" style="color:var(--primary)">${targetWord}</div>
-                    <input type="text" oninput="checkWord(this.value)">
-                `;
-            } else if (data.action === 'winner') {
-                document.getElementById('game-result').innerText = (data.id === myId) ? "KAMU MENANG!" : "LAWAN MENANG!";
+        function chkMath(v) {
+            if(parseInt(v) === mathAns) {
+                sendMove({ t: 'win', id: myId });
+                document.getElementById('game-result').innerText = "KAMU MENANG!";
                 document.querySelector('input').disabled = true;
             }
         }
+        function updateMath(d) {
+            if(d.t === 'q') renderMath(document.getElementById('game-container'), d.q, d.a);
+            if(d.t === 'win') {
+                document.getElementById('game-result').innerText = (d.id === myId) ? "KAMU MENANG!" : "LAWAN MENANG!";
+                let inp = document.querySelector('input');
+                if(inp) inp.disabled = true;
+            }
+        }
 
-        function checkWord(val) {
-            if (val === targetWord) {
-                broadcastMove({ action: 'winner', id: myId });
-                handleWord({ action: 'winner', id: myId });
+        // --- GAME 4: DICE ---
+        function initDice(box, title) {
+            title.innerText = "DICE BATTLE";
+            box.innerHTML = `<h1 id="dice-disp" style="font-size:4rem">🎲</h1><button onclick="roll()">ROLL</button>`;
+        }
+        function roll() {
+            let r = Math.floor(Math.random()*6)+1;
+            document.getElementById('dice-disp').innerText = r;
+            sendMove({ r: r, id: myId });
+            document.getElementById('game-result').innerText = `Kamu dapat ${r}`;
+        }
+        function updateDice(d) {
+            if(d.id !== myId) {
+                let curr = document.getElementById('game-result').innerText;
+                document.getElementById('game-result').innerText = `${curr} | Lawan: ${d.r}`;
+            }
+        }
+
+        // --- GAME 5: TYPING ---
+        const words = ["JAVASCRIPT", "SUPABASE", "INTERNET", "PROGRAMMER", "CHAMPION"];
+        function initWord(box, title) {
+            title.innerText = "TYPING RACE";
+            if(isHost) {
+                let w = words[Math.floor(Math.random()*words.length)];
+                sendMove({ t: 'q', w: w });
+                renderWord(box, w);
+            } else {
+                box.innerHTML = "Wait...";
+            }
+        }
+        let targetW = "";
+        function renderWord(box, w) {
+            targetW = w;
+            box.innerHTML = `<h2 style="letter-spacing:5px; color:var(--neon-blue)">${w}</h2><input type="text" oninput="chkW(this.value)" style="text-transform:uppercase">`;
+        }
+        function chkW(v) {
+            if(v.toUpperCase() === targetW) {
+                sendMove({ t: 'win', id: myId });
+                document.getElementById('game-result').innerText = "MENANG!";
+                document.querySelector('input').disabled = true;
+            }
+        }
+        function updateWord(d) {
+            if(d.t === 'q') renderWord(document.getElementById('game-container'), d.w);
+            if(d.t === 'win') {
+                 document.getElementById('game-result').innerText = (d.id === myId) ? "MENANG!" : "KALAH!";
+                 let inp = document.querySelector('input'); if(inp) inp.disabled = true;
             }
         }
 
